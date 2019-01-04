@@ -1,6 +1,9 @@
 # minesweeper
 Minesweeper written in Python with TKinter.
 
+![Screenshot](https://raw.githubusercontent.com/timothy-e/minesweeper/master/minesweeper.png)
+      
+
 Things it solves:
   - I was tired of clicking and getting just one cell revealed, because then a guess is required. This version will build a new board if the current board doesn't have an empty space on your first click.
 
