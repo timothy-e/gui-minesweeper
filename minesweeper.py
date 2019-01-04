@@ -49,34 +49,22 @@ class Paint:
         depth = 0.1
         canvas.create_rectangle(x, y, x + CELL_WIDTH, y + CELL_WIDTH, fill=color, width=0)
         canvas.create_polygon(
-            x,
-            y,
-            x,
-            y + CELL_WIDTH * 1.0,
-            x + CELL_WIDTH * depth,
-            y + CELL_WIDTH * (1 - depth),
-            x + CELL_WIDTH * depth,
-            y + CELL_WIDTH * depth,
-            x + CELL_WIDTH * (1 - depth),
-            y + CELL_WIDTH * depth,
-            x + CELL_WIDTH,
-            y,
+            x, y,
+            x, y + CELL_WIDTH * 1.0,
+            x + CELL_WIDTH * depth, y + CELL_WIDTH * (1 - depth),
+            x + CELL_WIDTH * depth, y + CELL_WIDTH * depth,
+            x + CELL_WIDTH * (1 - depth), y + CELL_WIDTH * depth,
+            x + CELL_WIDTH, y,
             fill=nw_color,
             width=0,  # no border
         )
         canvas.create_polygon(
-            x + CELL_WIDTH,
-            y + CELL_WIDTH,
-            x + CELL_WIDTH,
-            y,
-            x + CELL_WIDTH * (1 - depth),
-            y + CELL_WIDTH * depth,
-            x + CELL_WIDTH * (1 - depth),
-            y + CELL_WIDTH * (1 - depth),
-            x + CELL_WIDTH * depth,
-            y + CELL_WIDTH * (1 - depth),
-            x,
-            y + CELL_WIDTH,
+            x + CELL_WIDTH, y + CELL_WIDTH,
+            x + CELL_WIDTH, y,
+            x + CELL_WIDTH * (1 - depth), y + CELL_WIDTH * depth,
+            x + CELL_WIDTH * (1 - depth), y + CELL_WIDTH * (1 - depth),
+            x + CELL_WIDTH * depth, y + CELL_WIDTH * (1 - depth),
+            x, y + CELL_WIDTH,
             fill=se_color,
             width=0,  # no border
         )
