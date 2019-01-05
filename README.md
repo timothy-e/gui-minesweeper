@@ -16,6 +16,6 @@ Things it will solve in the future:
 TODO:
 
 - Clearing the board doesn't end the game yet
-- Chording is not supported yet
+- Setting key events for Chording requires TKinter's `focus_set()` which results in a weird black outline on the grid.
 - Make the GUI at the top look cleaner.
 - Beginner / Normal / Expert modes
