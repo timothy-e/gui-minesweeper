@@ -21,6 +21,9 @@ class Paint:
     _concealed_bg_light = "#DDDDDD"
     _concealed_bg = "#CCCCCC"
     _concealed_bg_dark = "#BBBBBB"
+
+    _mine_color = "#393939"
+
     _text_colors = [
         _revealed_bg,  # 0
         "#1874cd",  # 1
@@ -88,7 +91,39 @@ class Paint:
         """
         Draws a mine on the tile at (x, y).
         """
-        pass
+        circle_border = 0.3
+        stick_width = 0.05
+        stick_outdent = 0.075
+
+        canvas.create_oval(
+            x + CELL_WIDTH * circle_border,
+            y + CELL_WIDTH * circle_border,
+            x + CELL_WIDTH * (1 - circle_border),
+            y + CELL_WIDTH * (1 - circle_border),
+            fill=Paint._mine_color
+        )
+        canvas.create_polygon(
+            x + CELL_WIDTH * (0.5 - stick_width),
+            y + CELL_WIDTH * (circle_border - stick_outdent),
+            x + CELL_WIDTH * (0.5 + stick_width),
+            y + CELL_WIDTH * (circle_border - stick_outdent),
+            x + CELL_WIDTH * (0.5 + stick_width),
+            y + CELL_WIDTH * (1 - (circle_border - stick_outdent)),
+            x + CELL_WIDTH * (0.5 - stick_width),
+            y + CELL_WIDTH * (1 - (circle_border - stick_outdent)),
+            fill=Paint._mine_color
+        )
+        canvas.create_polygon(
+            x + CELL_WIDTH * (circle_border - stick_outdent),
+            y + CELL_WIDTH * (0.5 - stick_width),
+            x + CELL_WIDTH * (circle_border - stick_outdent),
+            y + CELL_WIDTH * (0.5 + stick_width),
+            x + CELL_WIDTH * (1 - (circle_border - stick_outdent)),
+            y + CELL_WIDTH * (0.5 + stick_width),
+            x + CELL_WIDTH * (1 - (circle_border - stick_outdent)),
+            y + CELL_WIDTH * (0.5 - stick_width),
+            fill=Paint._mine_color
+        )
 
     @classmethod
     def concealed(cls, canvas, x, y):
@@ -154,12 +189,32 @@ class Cell:
         self.uncovered = False
         self.neighbours = []
         self.flagged = False
+        self.exploded = False
 
     def update_count(self):
         self.count = sum(cell.is_mine for cell in self.neighbours)
 
     def add_neighbour(self, cell):
         self.neighbours.append(cell)
+
+    def for_neighbours(self, fn):
+        for neighbour in self.neighbours:
+            fn(neighbour)
+
+    def explode(self, master):
+        """
+        End game: explosions start from this cell. Provide a master to add
+        explosion calls to TKinter stack.
+        """
+        if self.exploded:
+            return
+
+        if self.is_mine:
+            self.uncover()
+
+        self.exploded = True
+
+        self.for_neighbours(lambda n: master.after(20, lambda: n.explode(master)))
 
     def uncover(self):
         """
@@ -175,8 +230,7 @@ class Cell:
 
         Paint.revealed(self.canvas, self.x, self.y, count=self.count)
         if self.count == 0:
-            for neighbour in self.neighbours:
-                neighbour.uncover()
+            self.for_neighbours(lambda n: n.uncover())
             return UncoverStatus.EMPTY
         return UncoverStatus.NUMBER
 
@@ -252,7 +306,11 @@ class Grid:
             return
 
         self.timer.configure(text=f"{(datetime.now() - self.start_time).total_seconds():05.1f}")
-        self.master.after(100, self.update_timer)
+        if not self.exploded:
+            self.master.after(100, self.update_timer)
+
+    def update_label(self):
+        self.mines_label.configure(text=self.n_mines - self.flagged_mines)
 
     def set_up(self, free_x=None, free_y=None):
         """
@@ -261,11 +319,24 @@ class Grid:
         placing a mine in it's neighbourhood.
         """
         self.flagged_mines = 0
+        self.exploded = False
         self.first_click = True
+        self.exploded = False
+        self.update_label()
 
         self.cells = [[Cell(self.canvas, row=i, col=j) for i in range(self.width)] for j in range(self.height)]
 
-        # set as mines
+        self._set_mines(free_x, free_y)
+        self._determine_neighbours()
+        self.exploded = False
+
+        self.start_time = datetime.now()
+
+    def _set_mines(self, free_x, free_y):
+        '''
+        Scatters mines throughout the grid. Skips (free_x, free_y) and it's
+        neighbours to guarantee that that place clears when clicked.
+        '''
         mines_to_place = self.n_mines
         while mines_to_place > 0:
             x = random.randrange(self.width)
@@ -279,7 +350,11 @@ class Grid:
             self.cells[y][x].is_mine = True
             mines_to_place -= 1
 
-        # determine neighbours
+    def _determine_neighbours(self):
+        """
+        Iterates through all the cells and informs each cell of it's neighbours
+        to allow for each cell to call on it's neighbours.
+        """
         for i, row in enumerate(self.cells):
             for j, cell in enumerate(row):
                 if j > 0:
@@ -303,7 +378,12 @@ class Grid:
 
                 cell.update_count()
 
-        self.start_time = datetime.now()
+    def explode(self):
+        """
+        Prints the game ending text.
+        """
+        self.exploded = True
+        self.canvas.create_text(self.width * CELL_WIDTH / 2, self.height * CELL_WIDTH / 2, text="YOU LOST")
 
     def _get_cell_from_coord(self, x, y):
         """
@@ -320,16 +400,22 @@ class Grid:
             x: the x position of the click event
             y: the y position of the click event
         """
+        if self.exploded:
+            return
         cell = self._get_cell_from_coord(x, y)
 
         if self.first_click:
             state = cell.uncover()
             if state is not UncoverStatus.EMPTY:
                 self.set_up(free_x=x // CELL_WIDTH, free_y=y // CELL_WIDTH)
+                cell = self._get_cell_from_coord(x, y)
             self.first_click = False
             self.update_timer()
 
-        return self._get_cell_from_coord(x, y).uncover()
+        # if mine
+        if cell.uncover() is UncoverStatus.MINE:
+            cell.explode(self.master)
+            self.explode()
 
     def flag_cell(self, x, y):
         """
@@ -339,9 +425,10 @@ class Grid:
             x: the x position of the click event
             y: the y position of the click event
         """
+        if self.exploded:
+            return
         self.flagged_mines += self._get_cell_from_coord(x, y).flag()
-
-        self.mines_label.configure(text=self.n_mines - self.flagged_mines)
+        self.update_label()
 
     def chord_cell(self, x, y):
         """
@@ -350,6 +437,8 @@ class Grid:
             x: the x position of the click event
             y: the y position of the click event
         """
+        if self.exploded:
+            return
         self._get_cell_from_coord(x, y).chord()
 
 
