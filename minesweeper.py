@@ -240,7 +240,10 @@ class Cell:
         number is satisfied (i.e. surrounded by the correct number of flags),
         then it clears all the surrounding unflagged cells.
         """
-        pass
+        flags_nearby = sum(n.flagged for n in self.neighbours)
+
+        if self.count == flags_nearby:
+            self.for_neighbours(lambda n: n.uncover() if not n.flagged else n)
 
     def flag(self):
         """
@@ -293,9 +296,11 @@ class Grid:
 
         self.canvas = tk.Canvas(master=self.master, width=width * CELL_WIDTH, height=height * CELL_WIDTH)
         self.canvas.grid(row=1, padx=CELL_WIDTH, pady=CELL_WIDTH, columnspan=3)
+        self.canvas.focus_set()
         self.canvas.bind("<Button-1>", lambda event: self.uncover_cell(event.x, event.y))
         self.canvas.bind("<Button-2>", lambda event: self.chord_cell(event.x, event.y))
         self.canvas.bind("<Button-3>", lambda event: self.flag_cell(event.x, event.y))
+        self.canvas.bind("<Key>", lambda event: self.key_event(event.char, event.x, event.y))
 
         self.set_up()
         self.master.mainloop()
@@ -391,6 +396,10 @@ class Grid:
         mouse click.
         """
         return self.cells[y // CELL_WIDTH][x // CELL_WIDTH]
+
+    def key_event(self, key, x, y):
+        if key == " ":
+            self.chord_cell(x, y)
 
     def uncover_cell(self, x, y):
         """
